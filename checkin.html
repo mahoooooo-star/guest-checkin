@@ -4,21 +4,19 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Check In</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+  <script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #111; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; }
     #flash { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: none; align-items: center; justify-content: center; flex-direction: column; z-index: 10; }
     #flash h1 { font-size: 2.5rem; color: white; text-align: center; padding: 1rem; }
     video { width: 100%; max-width: 400px; border-radius: 12px; }
-    canvas { display: none; }
     #status { color: #aaa; margin-top: 1rem; font-size: 0.9rem; }
   </style>
 </head>
 <body>
 
   <video id="video" autoplay playsinline></video>
-  <canvas id="canvas"></canvas>
   <p id="status">Scanning...</p>
 
   <div id="flash">
@@ -28,33 +26,20 @@
 <script>
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyp85dQw60YUFjpzIDIsZKOkCZIKYlTkaYjp70a1PmcMC-eqkYAQNs_GQTar04xQul8/exec";
 
-  const video = document.getElementById("video");
-  const canvas = document.getElementById("canvas");
-  const ctx = canvas.getContext("2d");
   const flash = document.getElementById("flash");
   const flashText = document.getElementById("flash-text");
   const status = document.getElementById("status");
 
   let scanning = true;
 
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-    .then(stream => { video.srcObject = stream; requestAnimationFrame(scan); });
+  const codeReader = new ZXing.BrowserQRCodeReader();
 
-  function scan() {
-    if (video.readyState === video.HAVE_ENOUGH_DATA) {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const code = jsQR(imageData.data, canvas.width, canvas.height);
-
-      if (code && scanning) {
-        scanning = false;
-        handleScan(code.data);
-      }
+  codeReader.decodeFromVideoDevice(null, "video", async (result, err) => {
+    if (result && scanning) {
+      scanning = false;
+      await handleScan(result.getText());
     }
-    requestAnimationFrame(scan);
-  }
+  });
 
   async function handleScan(url) {
     status.textContent = "Processing...";
